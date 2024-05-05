@@ -10,7 +10,7 @@ This command-line utility processes images by resizing, cropping to fit specifie
 
 ## Requirements
 
-- Python 3.6 or higher
+- Python 3.10 or higher
 
 ## Installation
 
@@ -56,4 +56,4 @@ Load this environment variable with `dotenv` when the script runs.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the ISC License - see the LICENSE file for details.
