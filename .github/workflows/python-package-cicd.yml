@@ -1,0 +1,69 @@
+name: Python Package CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Configure Poetry
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Lint with flake8
+      run: poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Test with pytest
+      run: poetry run pytest
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 -
+
+    - name: Get current package version
+      id: get-version
+      run: echo "PACKAGE_VERSION=$(poetry version -s)" >> $GITHUB_ENV
+
+    - name: Get latest published version
+      id: get-published-version
+      run: echo ::set-output name=published_version::$(pip install $(poetry version -s) --no-deps --no-python-version-warning -qqq || echo "0.0.0")
+
+    - name: Compare versions and Publish if newer
+      run: |
+        if [ "$(echo -e "$PACKAGE_VERSION\n${{ steps.get-published-version.outputs.published_version }}" | sort -V | head -n1)" != "$PACKAGE_VERSION" ]; then
+          echo "Current version is not greater; not publishing."
+          exit 0
+        fi
+        poetry publish --build -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
+
